@@ -10,9 +10,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
+#include "queue.h"
 
 #define BUFSIZE 1024
-
+#define HEADER 5 // make sure this is the same between files
 /* 
  * error - wrapper for perror
  */
@@ -29,6 +30,10 @@ int main(int argc, char **argv) {
     socklen_t servlen;
     int status;
     char cmd[10];
+
+    // handling packets
+    char header[HEADER];
+    //Queue* intake = createQueue(); 
 
     if (argc != 3) {
        fprintf(stderr,"usage: %s <hostname> <port>\n", argv[0]);
@@ -83,21 +88,48 @@ int main(int argc, char **argv) {
       fgets(buf, BUFSIZE-1, stdin); // this includes \n character adding +2 to strlen() output
       sscanf(buf, "%s", cmd);
 
-
+      // send the command to server
       if((n = sendto(sockfd, buf, strlen(buf), 0, p->ai_addr, p->ai_addrlen)) <= 0)
       {
         error("ERROR in sendto");
       }
-      
+
+//   Queue* queue = createQueue();
+
+//   char* item1 = (char*)malloc(ARRAY_SIZE * sizeof(char));
+
+//   char* dequeuedItem1 = dequeue(queue);
+
+      // if we sent get <filename> run loop to get all packets
+      if(strcmp(cmd,"get"))
+      {
+        //char* in_packet;
+        //int sz_packet;
+        char* ex_mode = "X";
+
+        if((n = recvfrom(sockfd, buf, BUFSIZE, 0, p->ai_addr, &servlen)) <= 0)
+        {
+          error("ERROR, COULD NOT RECEIVE FILE FROM SERVER");
+        }
+        memcpy(header, buf, HEADER);
+        //mode = header;
+        printf("%s", buf+5);
+
+        while(strcmp(header, ex_mode) != 0) // must use single quotes for char literals
+        {
+          bzero(buf, BUFSIZE);
+          n = recvfrom(sockfd, buf, BUFSIZE, 0, p->ai_addr, &servlen);
+          printf("%s", buf+5);
+        }
+
+
+      }
       // make the logic to loop until the "X" mode is received
       // i can still make the packet size dynamic but now i just have to make sure
       // to first parse the data_size value to keep track of the packet length and
       // for however long i need to get it all completely
       // keep the 1024 buffer into circular buffer to hold two packets
-      if((n = recvfrom(sockfd, buf, BUFSIZE, 0, p->ai_addr, &servlen)) <= 0)
-      {
-        error("ERROR in recvfrom");
-      }
+      
       printf("Echo from server: %s", buf);
     }
     return 0;

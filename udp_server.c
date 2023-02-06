@@ -13,13 +13,13 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "queue.h"
+#include "util.h"
 
 #define BUFSIZE 512
-#define PACKET BUFSIZE + 5
+#define HEADER 5
+#define PACKET BUFSIZE + HEADER
 
-/*
- * error - wrapper for perror
- */
 void error(char *msg) {
   perror(msg);
   exit(1);
@@ -59,12 +59,13 @@ int main(int argc, char **argv) {
   // file manipulation and reading
   FILE *fp;
   struct stat st;
-  // char sh_cmd[1024];
   off_t num_bytes;
+  
+  // handling packetization
   char packet[PACKET];
-  char mode;
-  char data_size[4];
+  char header[HEADER];
   char packet_data[BUFSIZE];
+  //Queue* intake = createQueue(); 
   
 
   memset(&hints, 0, sizeof hints);
@@ -157,34 +158,51 @@ int main(int argc, char **argv) {
 
       while (num_bytes > 0)
       {
-        size_t numb_read = fread(buf, sizeof(char), BUFSIZE, fp);
+        size_t numb_read = fread(buf, sizeof(char), BUFSIZE, fp); // will read past BUFSIZE a little so handle with %.*s width argument
+        char data_size[4];
+        char* mode;
+        sprintf(data_size, "%d", (int)numb_read);
+        sprintf(packet_data, "%.*s", (int)numb_read, buf);
+        memset(header, '?', HEADER);
+        //sscanf(buf,"%*s",(int)numb_read,packet_data); //adds \0 to the end of the string
+        //bzero(header, HEADER);
 
         //printf("%.*s", (int)numb_read, buf); // at EOF, this strips \0 so I need to add it when it's written on client side
         if(numb_read < BUFSIZE)
         {
           // stuffing exit() packet ;)
+          
+          //sscanf(buf,"%.*s",(int)numb_read,packet_data);
           mode = "X";
-          itoa((int)numb_read, data_size, 10);
-          sscanf(buf,"%.*s",(int)numb_read,buf);
-          memcpy(packet_data, mode, 1);
-          memcpy(packet_data + 1, data_size, 4);
-          memcpy(packet_data + 5, data_size, (int)numb_read);
+          memcpy(header, mode, 1);
+          memcpy(header + 1, data_size, 4);
+          memcpy(packet, header, HEADER);
+          memcpy(packet + HEADER, packet_data, BUFSIZE);
+
+          int packet_sz = HEADER + (int)numb_read;
+          if (sendall(sockfd, packet_data, &packet_sz, p) == -1)
+          {
+            printf("ONLY SENT %d BYTES DUE TO ERROR\n", packet_sz);
+            error("sendall");
+          }
           break;
         }
-
         // stuffing packets ;)
         mode = "O";
-        itoa((int)numb_read, data_size, 10);
-        sscanf(buf,"%.*s",(int)numb_read,buf);
-        memcpy(packet_data, mode, 1);
-        memcpy(packet_data + 1, data_size, 4);
-        memcpy(packet_data + 5, data_size, 512);
+        memcpy(header, mode, 1);
+        memcpy(header + 1, data_size, 4);
+        memcpy(packet, header, HEADER);
+        memcpy(packet + HEADER, packet_data, BUFSIZE);
+
+        int packet_sz = PACKET;
+        if (sendall(sockfd, packet_data, &packet_sz, p) == -1)
+        {
+          printf("ONLY SENT %d BYTES DUE TO ERROR\n", packet_sz);
+          error("sendall");
+        } 
 
         num_bytes -= numb_read;
-      }
-
-      if ((n = sendto(sockfd, "GOT VALID_FILENAME\n", BUFSIZE, 0, (struct sockaddr *) &their_addr, clientlen)) <= 0) 
-          error("ERROR in sendto");     
+      }   
     }
     else if(strcmp(cmd, "put") == 0)
     {
