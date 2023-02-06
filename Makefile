@@ -13,6 +13,15 @@ run: udp_server udp_client
 	gnome-terminal -- bash -c "./udp_server 1600; exec bash" &
 	gnome-terminal -- bash -c "./udp_client localhost 1600; exec bash"
 
+push:
+ifndef COMMIT_MSG
+	$(error COMMIT_MSG is not set)
+endif
+	git add .
+	git commit -m "$(COMMIT_MSG)"
+	git push
+
 clean:
 	rm -f udp_server udp_client
+
 
