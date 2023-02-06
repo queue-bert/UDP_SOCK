@@ -14,7 +14,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define BUFSIZE 1024
+#define BUFSIZE 512
+#define PACKET BUFSIZE + 5
 
 /*
  * error - wrapper for perror
@@ -60,6 +61,10 @@ int main(int argc, char **argv) {
   struct stat st;
   // char sh_cmd[1024];
   off_t num_bytes;
+  char packet[PACKET];
+  char mode;
+  char data_size[4];
+  char packet_data[BUFSIZE];
   
 
   memset(&hints, 0, sizeof hints);
@@ -137,6 +142,9 @@ int main(int argc, char **argv) {
       }
 
       printf("FILE SIZE: %ld\n", num_bytes);
+      // not sure if i have to send a size packet because the end of my loop could just send
+      // a completion byte in the last packet and the packet size
+      // [mode][size][data] = 1 + 3 + 512
 
 
       fp = fopen(file, "r");
@@ -150,11 +158,28 @@ int main(int argc, char **argv) {
       while (num_bytes > 0)
       {
         size_t numb_read = fread(buf, sizeof(char), BUFSIZE, fp);
-        printf("%.*s", (int)numb_read, buf); // at EOF, this strips \0 so I need to add it when it's written on client side
+
+        //printf("%.*s", (int)numb_read, buf); // at EOF, this strips \0 so I need to add it when it's written on client side
         if(numb_read < BUFSIZE)
         {
+          // stuffing exit() packet ;)
+          mode = "X";
+          itoa((int)numb_read, data_size, 10);
+          sscanf(buf,"%.*s",(int)numb_read,buf);
+          memcpy(packet_data, mode, 1);
+          memcpy(packet_data + 1, data_size, 4);
+          memcpy(packet_data + 5, data_size, (int)numb_read);
           break;
         }
+
+        // stuffing packets ;)
+        mode = "O";
+        itoa((int)numb_read, data_size, 10);
+        sscanf(buf,"%.*s",(int)numb_read,buf);
+        memcpy(packet_data, mode, 1);
+        memcpy(packet_data + 1, data_size, 4);
+        memcpy(packet_data + 5, data_size, 512);
+
         num_bytes -= numb_read;
       }
 
@@ -191,6 +216,13 @@ int main(int argc, char **argv) {
     }
     else if(strcmp(cmd, "ls") == 0)
     {
+      fp = popen("ls", "r");
+      if(fp == NULL)
+      {
+        error("Unable to get list of current directory files");
+      }
+
+      //while(fgets())
       n = sendto(sockfd, "RECEIVED LIST\n", strlen(buf), 0, (struct sockaddr *) &their_addr, clientlen);
       if (n <= 0) 
         error("ERROR in sendto");
