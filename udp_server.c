@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
   off_t num_bytes;
   
   // handling packetization
-  char packet[PACKET];
+  char packet[PACKET+1];
   char header[HEADER];
   char packet_data[BUFSIZE];
   //Queue* intake = createQueue(); 
@@ -158,48 +158,53 @@ int main(int argc, char **argv) {
 
       while (num_bytes > 0)
       {
+        // reset buffers for packet-population
+        memset(header, '?', HEADER);
+        bzero(packet_data, BUFSIZE);
+
+        // initializing packet datum
         size_t numb_read = fread(buf, sizeof(char), BUFSIZE, fp); // will read past BUFSIZE a little so handle with %.*s width argument
         char data_size[4];
         char* mode;
-        sprintf(data_size, "%d", (int)numb_read);
-        sprintf(packet_data, "%.*s", (int)numb_read, buf);
-        memset(header, '?', HEADER);
-        //sscanf(buf,"%*s",(int)numb_read,packet_data); //adds \0 to the end of the string
-        //bzero(header, HEADER);
+        int data_size_written = sprintf(data_size, "%d", (int)numb_read);
+        int packet_data_written = sprintf(packet_data, "%.*s", (int)numb_read, buf);
 
-        //printf("%.*s", (int)numb_read, buf); // at EOF, this strips \0 so I need to add it when it's written on client side
         if(numb_read < BUFSIZE)
         {
           // stuffing exit() packet ;)
-          
-          //sscanf(buf,"%.*s",(int)numb_read,packet_data);
           mode = "X";
           memcpy(header, mode, 1);
-          memcpy(header + 1, data_size, 4);
+          memcpy(header + 1, data_size, data_size_written);
           memcpy(packet, header, HEADER);
-          memcpy(packet + HEADER, packet_data, BUFSIZE);
+          memcpy(packet + HEADER, packet_data, packet_data_written);
+          packet[packet_data_written+HEADER] = '\0';
+          //packet[PACKET] = '\0';
+          printf("%s", packet+HEADER);
 
-          int packet_sz = HEADER + (int)numb_read;
-          if (sendall(sockfd, packet_data, &packet_sz, p) == -1)
-          {
-            printf("ONLY SENT %d BYTES DUE TO ERROR\n", packet_sz);
-            error("sendall");
-          }
+          // int packet_sz = HEADER + (int)numb_read;
+          // if (sendall(sockfd, packet_data, &packet_sz, p) == -1)
+          // {
+          //   printf("ONLY SENT %d BYTES DUE TO ERROR\n", packet_sz);
+          //   error("sendall");
+          // }
           break;
         }
         // stuffing packets ;)
         mode = "O";
         memcpy(header, mode, 1);
-        memcpy(header + 1, data_size, 4);
+        memcpy(header + 1, data_size, data_size_written);
+        //header[HEADER] = '\0';
         memcpy(packet, header, HEADER);
-        memcpy(packet + HEADER, packet_data, BUFSIZE);
+        memcpy(packet + HEADER, packet_data, packet_data_written);
+        packet[PACKET] = '\0';
+        printf("%s", packet+HEADER);
 
-        int packet_sz = PACKET;
-        if (sendall(sockfd, packet_data, &packet_sz, p) == -1)
-        {
-          printf("ONLY SENT %d BYTES DUE TO ERROR\n", packet_sz);
-          error("sendall");
-        } 
+        // int packet_sz = PACKET;
+        // if (sendall(sockfd, packet_data, &packet_sz, p) == -1)
+        // {
+        //   printf("ONLY SENT %d BYTES DUE TO ERROR\n", packet_sz);
+        //   error("sendall");
+        // } 
 
         num_bytes -= numb_read;
       }   
