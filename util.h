@@ -5,6 +5,6 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-int sendall(int s, char *buf, int *len, struct addrinfo* p);
+int sendall(int s, char *buf, int *len, struct sockaddr* p);
 
 #endif

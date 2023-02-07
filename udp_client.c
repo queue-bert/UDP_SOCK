@@ -35,6 +35,9 @@ int main(int argc, char **argv) {
     char header[HEADER];
     //Queue* intake = createQueue(); 
 
+    // downloading by opening a new file to write to
+    //FILE* fp;
+
     if (argc != 3) {
        fprintf(stderr,"usage: %s <hostname> <port>\n", argv[0]);
        exit(0);
@@ -86,27 +89,27 @@ int main(int argc, char **argv) {
       bzero(buf, BUFSIZE);
       printf("Please enter msg: ");
       fgets(buf, BUFSIZE-1, stdin); // this includes \n character adding +2 to strlen() output
-      sscanf(buf, "%s", cmd);
+      int cmd_bytes_written = sscanf(buf, "%s", cmd);
+      printf("THIS IS YOUR COMMAND %s of length %d\n", cmd, cmd_bytes_written);
 
       // send the command to server
       if((n = sendto(sockfd, buf, strlen(buf), 0, p->ai_addr, p->ai_addrlen)) <= 0)
       {
         error("ERROR in sendto");
       }
-
-//   Queue* queue = createQueue();
-
 //   char* item1 = (char*)malloc(ARRAY_SIZE * sizeof(char));
 
 //   char* dequeuedItem1 = dequeue(queue);
 
       // if we sent get <filename> run loop to get all packets
-      if(strcmp(cmd,"get"))
+      if(strcmp(cmd,"get") == 0)
       {
         //char* in_packet;
         //int sz_packet;
         char* ex_mode = "X";
 
+        // if needed i should set a timeout, this is a blocking call and might not unblock
+        // until it receives something which could take forever
         if((n = recvfrom(sockfd, buf, BUFSIZE, 0, p->ai_addr, &servlen)) <= 0)
         {
           error("ERROR, COULD NOT RECEIVE FILE FROM SERVER");
@@ -119,6 +122,7 @@ int main(int argc, char **argv) {
         {
           bzero(buf, BUFSIZE);
           n = recvfrom(sockfd, buf, BUFSIZE, 0, p->ai_addr, &servlen);
+          memcpy(header, buf, HEADER);
           printf("%s", buf+5);
         }
 

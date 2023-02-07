@@ -171,40 +171,40 @@ int main(int argc, char **argv) {
 
         if(numb_read < BUFSIZE)
         {
-          // stuffing exit() packet ;)
+          // stuffing exit packet ;)
           mode = "X";
           memcpy(header, mode, 1);
           memcpy(header + 1, data_size, data_size_written);
           memcpy(packet, header, HEADER);
           memcpy(packet + HEADER, packet_data, packet_data_written);
           packet[packet_data_written+HEADER] = '\0';
-          //packet[PACKET] = '\0';
           printf("%s", packet+HEADER);
 
-          // int packet_sz = HEADER + (int)numb_read;
-          // if (sendall(sockfd, packet_data, &packet_sz, p) == -1)
-          // {
-          //   printf("ONLY SENT %d BYTES DUE TO ERROR\n", packet_sz);
-          //   error("sendall");
-          // }
+          int packet_sz = HEADER + packet_data_written;
+          if (sendall(sockfd, packet, &packet_sz, (struct sockaddr *) &their_addr) == -1)
+          {
+            printf("ONLY SENT %d BYTES DUE TO ERROR\n", packet_sz);
+            error("sendall");
+          }
+          
           break;
         }
+
         // stuffing packets ;)
         mode = "O";
         memcpy(header, mode, 1);
         memcpy(header + 1, data_size, data_size_written);
-        //header[HEADER] = '\0';
         memcpy(packet, header, HEADER);
         memcpy(packet + HEADER, packet_data, packet_data_written);
         packet[PACKET] = '\0';
         printf("%s", packet+HEADER);
 
-        // int packet_sz = PACKET;
-        // if (sendall(sockfd, packet_data, &packet_sz, p) == -1)
-        // {
-        //   printf("ONLY SENT %d BYTES DUE TO ERROR\n", packet_sz);
-        //   error("sendall");
-        // } 
+        int packet_sz = PACKET;
+        if (sendall(sockfd, packet, &packet_sz, (struct sockaddr *) &their_addr) == -1)
+        {
+          printf("ONLY SENT %d BYTES DUE TO ERROR\n", packet_sz);
+          error("sendall");
+        } 
 
         num_bytes -= numb_read;
       }   
@@ -217,6 +217,7 @@ int main(int argc, char **argv) {
     }
     else if(strcmp(cmd, "delete") == 0)
     {
+      // DELETE IS DONE!!!
       if (num_assign != 2)
       {
         if ((n = sendto(sockfd, "ENTER VALID FILENAME TO DELETE\n", BUFSIZE, 0, (struct sockaddr *) &their_addr, clientlen)) <= 0) 

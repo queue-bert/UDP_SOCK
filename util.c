@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "util.h"
 
-int sendall(int s, char *buf, int *len, struct addrinfo* p)
+int sendall(int s, char *buf, int *len, struct sockaddr* p)
 {
     int total = 0;
     int bytesleft = *len;
@@ -10,7 +10,7 @@ int sendall(int s, char *buf, int *len, struct addrinfo* p)
 
     while(total < *len)
     {
-        if((n = sendto(s, buf+total, bytesleft, 0, p->ai_addr, p->ai_addrlen)) <= 0)
+        if((n = sendto(s, buf+total, bytesleft, 0, p, sizeof *p)) <= 0)
         {
             break;
         }
