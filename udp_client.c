@@ -13,7 +13,7 @@
 #include "queue.h"
 
 #define BUFSIZE 1024
-#define HEADER 5 // make sure this is the same between files
+#define HEADER 3 // make sure this is the same between files
 /* 
  * error - wrapper for perror
  */
@@ -33,10 +33,10 @@ int main(int argc, char **argv) {
 
     // handling packets
     char header[HEADER];
-    //Queue* intake = createQueue(); 
+    Queue* intake = createQueue(); 
 
     // downloading by opening a new file to write to
-    //FILE* fp;
+    FILE* fp;
 
     if (argc != 3) {
        fprintf(stderr,"usage: %s <hostname> <port>\n", argv[0]);
@@ -104,26 +104,107 @@ int main(int argc, char **argv) {
       // if we sent get <filename> run loop to get all packets
       if(strcmp(cmd,"get") == 0)
       {
-        //char* in_packet;
-        //int sz_packet;
+        int complete = 1;
+        int cmp;
+        uint16_t bytes_left;
+        char* in_packet;
         char* ex_mode = "X";
+        uint16_t ns_length;
 
         // if needed i should set a timeout, this is a blocking call and might not unblock
         // until it receives something which could take forever
         if((n = recvfrom(sockfd, buf, BUFSIZE, 0, p->ai_addr, &servlen)) <= 0)
-        {
           error("ERROR, COULD NOT RECEIVE FILE FROM SERVER");
-        }
         memcpy(header, buf, HEADER);
-        //mode = header;
-        printf("%s", buf+5);
+        memcpy(&ns_length, header+1, sizeof(ns_length));
+        ns_length = ntohs(ns_length);
 
-        while(strcmp(header, ex_mode) != 0) // must use single quotes for char literals
+        if((in_packet = (char*)malloc(ns_length * sizeof(char))) == NULL)
+        {
+          error("malloc failed to allocate memory");
+        }
+        enqueue(intake, in_packet);
+        memcpy(in_packet, buf+HEADER, n-HEADER); // adding bytes we've received to packet buffer
+
+        if((uint16_t)n < ns_length)
+        {
+          complete = 0;
+          bytes_left = ns_length - (uint16_t)n;
+        }
+        else
+        {
+          // dequeue and write to file
+          // free memory
+        }
+
+        printf("%s", buf+HEADER);
+
+        while((cmp = strncmp(header, ex_mode , sizeof(char))) != 0 && complete) // must use single quotes for char literals
         {
           bzero(buf, BUFSIZE);
-          n = recvfrom(sockfd, buf, BUFSIZE, 0, p->ai_addr, &servlen);
-          memcpy(header, buf, HEADER);
-          printf("%s", buf+5);
+          if((n = recvfrom(sockfd, buf, BUFSIZE, 0, p->ai_addr, &servlen)) <= 0)
+            error("ERROR, COULD NOT RECEIVE PACKET FROM SERVER");
+
+          if(!complete)
+          {
+            if (n > bytes_left) // edge case :: only two bytes are left after subtracting what was missing
+            {
+              memcpy(in_packet+(ns_length-bytes_left), buf, bytes_left); // might need to add '\0'
+              char* dq = dequeue(intake);
+              // write bytes to file 'fp'
+              free(dq);
+              complete = 1;
+              if (cmp == 0)
+                continue; // escape from loop otherwise continue parsing packets
+            }
+            else
+            {
+              memcpy(in_packet+(ns_length-bytes_left), buf, n);
+              if((bytes_left -= n) == 0)
+              {
+                char* dq = dequeue(intake);
+                // write bytes to file 'fp'
+                free(dq);
+                complete = 1;
+              }
+              continue; // get out what we can from the buffer but continue trying to get all the bytes
+            }
+            // check how many bytes are in the new recvfrom()
+            // if there is more than what we're missing we can just takes those bytes
+            // and append them to the end of the item we just queued and then dequeue it
+            // part of the dequeue could take in a file pointer possibly to add those to a file
+            // open for writing. we'll probably have a chunk of the next packet if there even is one
+            // (check mode before parsing after if(!complete){} ). if our buffer does include the next
+            // packet i can simply do buf+bytes_left to point to the position of the new packet in
+            // the buffer
+          }
+          memcpy(header, buf+bytes_left, HEADER);
+          memcpy(&ns_length, header+1, sizeof(ns_length));
+          ns_length = ntohs(ns_length);
+
+          if((in_packet = (char*)malloc(ns_length * sizeof(char))) == NULL)
+          {
+            error("malloc failed to allocate memory");
+          }
+          enqueue(intake, in_packet);
+          memcpy(in_packet, buf+bytes_left+HEADER, n-HEADER-bytes_left); // adding bytes we've received to packet buffer
+
+          if((uint16_t)n-HEADER-bytes_left < ns_length)
+          {
+            complete = 0;
+            bytes_left = ns_length - (uint16_t)n-HEADER-bytes_left;
+          }
+          else
+          {
+            // dequeue and write to file
+            // free memory
+          }
+
+
+
+        //in_packet = (char*)malloc(sz_packet * sizeof(char));
+          printf("\n\nTHIS IS THE LENGTH: %u\n\n", ns_length);
+          printf("%s", buf+bytes_left+HEADER);
         }
 
 
@@ -133,8 +214,6 @@ int main(int argc, char **argv) {
       // to first parse the data_size value to keep track of the packet length and
       // for however long i need to get it all completely
       // keep the 1024 buffer into circular buffer to hold two packets
-      
-      printf("Echo from server: %s", buf);
     }
     return 0;
 }

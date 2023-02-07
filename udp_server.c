@@ -17,7 +17,7 @@
 #include "util.h"
 
 #define BUFSIZE 512
-#define HEADER 5
+#define HEADER 3
 #define PACKET BUFSIZE + HEADER
 
 void error(char *msg) {
@@ -164,9 +164,8 @@ int main(int argc, char **argv) {
 
         // initializing packet datum
         size_t numb_read = fread(buf, sizeof(char), BUFSIZE, fp); // will read past BUFSIZE a little so handle with %.*s width argument
-        char data_size[4];
+        uint16_t ns_length = htons((uint16_t) numb_read);
         char* mode;
-        int data_size_written = sprintf(data_size, "%d", (int)numb_read);
         int packet_data_written = sprintf(packet_data, "%.*s", (int)numb_read, buf);
 
         if(numb_read < BUFSIZE)
@@ -174,7 +173,7 @@ int main(int argc, char **argv) {
           // stuffing exit packet ;)
           mode = "X";
           memcpy(header, mode, 1);
-          memcpy(header + 1, data_size, data_size_written);
+          memcpy(header + 1, &ns_length, sizeof(ns_length));
           memcpy(packet, header, HEADER);
           memcpy(packet + HEADER, packet_data, packet_data_written);
           packet[packet_data_written+HEADER] = '\0';
@@ -193,7 +192,7 @@ int main(int argc, char **argv) {
         // stuffing packets ;)
         mode = "O";
         memcpy(header, mode, 1);
-        memcpy(header + 1, data_size, data_size_written);
+        memcpy(header + 1, &ns_length, sizeof(ns_length));
         memcpy(packet, header, HEADER);
         memcpy(packet + HEADER, packet_data, packet_data_written);
         packet[PACKET] = '\0';
