@@ -19,6 +19,10 @@ run: udp_server udp_client
 	gnome-terminal -- bash -c "./udp_server 1600; exec bash" &
 	gnome-terminal -- bash -c "./udp_client localhost 1600; exec bash"
 
+gdb: udp_server udp_client
+	gnome-terminal -- bash -c "gdb -ex run --args ./udp_server 1600; exec bash" &
+	gnome-terminal -- bash -c "gdb -ex run --args ./udp_client localhost 1600; exec bash" &
+
 push:
 ifndef COMMIT_MSG
 	$(error COMMIT_MSG is not set)
@@ -29,6 +33,7 @@ endif
 
 clean:
 	rm -f udp_server udp_client queue.o util.o
+
 
 
 

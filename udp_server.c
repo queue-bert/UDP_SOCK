@@ -159,12 +159,19 @@ int main(int argc, char **argv) {
       while (num_bytes > 0)
       {
         // reset buffers for packet-population
-        memset(header, '?', HEADER);
+        //memset(header, '?', HEADER);
+        int chunk = BUFSIZE;
         bzero(packet_data, BUFSIZE);
+        if(num_bytes < BUFSIZE)
+        {
+          chunk = num_bytes;
+        }
 
         // initializing packet datum
-        size_t numb_read = fread(buf, sizeof(char), BUFSIZE, fp); // will read past BUFSIZE a little so handle with %.*s width argument
-        uint16_t ns_length = htons((uint16_t) numb_read);
+        
+        size_t numb_read = fread(buf, sizeof(char), chunk, fp); // will read past BUFSIZE a little so handle with %.*s width argument
+        // added '+ HEADER' to ns_length
+        uint16_t ns_length = htons((uint16_t) numb_read + HEADER);
         char* mode;
         int packet_data_written = sprintf(packet_data, "%.*s", (int)numb_read, buf);
 

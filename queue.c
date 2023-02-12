@@ -11,11 +11,11 @@ Queue* createQueue() {
 }
 
 int isFull(Queue* queue) {
-  return ((queue->rear + 1) % QUEUE_SIZE == queue->front);
+  return (queue->size == QUEUE_SIZE);
 }
 
 int isEmpty(Queue* queue) {
-  return (queue->front == queue->rear);
+  return (queue->size == 0);
 }
 
 void enqueue(Queue* queue, char* item) {
